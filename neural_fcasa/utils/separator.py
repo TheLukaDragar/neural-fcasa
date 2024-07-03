@@ -48,7 +48,7 @@ def main(add_common_args: Callable[[ArgumentParser], None], initialize: Callable
     sub_parser.add_argument("src_path", type=Path)
     sub_parser.add_argument("dst_path", type=Path)
     add_common_args(sub_parser)
-    sub_parser.add_argument("--ext", type=str, default="flac")
+    sub_parser.add_argument("--ext", type=str, default="wav")
     sub_parser.set_defaults(handler=separate_batch)
 
     args, unk_args = parser.parse_known_args()
