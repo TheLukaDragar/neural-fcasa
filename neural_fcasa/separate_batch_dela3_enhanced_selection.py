@@ -518,7 +518,8 @@ def separate(
         
 
     
-
+    noise_channel = final_output[:, 5, :].copy()
+    print("noise_channel.shape: ", noise_channel.shape)
     all_max_amplitude = []
 
     for i in range(audio.shape[0]):
@@ -541,11 +542,34 @@ def separate(
 
             end = int(turn.end * sr)
 
+            # print(start, end)
+
+            #check if both over limit 
+            if start > current_mic.shape[0] and end > current_mic.shape[0]:
+                #skip 
+                print("both start and end over limit, skipping")
+                continue
+
+
+            #check if end over limit
+            if end > current_mic.shape[0]:
+                print("end over limit setting to end of file", current_mic.shape[0])
+                end = current_mic.shape[0]
+
+            
+            #check if start and end are the same
+            if start == end:
+                print("start and end are the same, skipping")
+                continue
+
             segment = current_mic[start:end]
 
             segment = np.array(segment)
 
+            # print("segment shape: ", segment.shape)
+
             max_amplitude = np.max(np.abs(segment))
+
 
             if speaker not in current_speaker_max_amplitude:
 
@@ -666,9 +690,32 @@ def separate(
     all_centroids_flat = np.concatenate(all_centroids, axis=0)
     print(all_centroids_flat.shape)
 
+    #set nan values to 0
+    all_centroids_flat = np.nan_to_num(all_centroids_flat)
+
+    #  Check if there are any NaN values left
+    if np.isnan(all_centroids_flat).any() or np.isinf(all_centroids_flat).any():
+        raise ValueError("Centroids contain NaNs or infinite values.")
+    
+    # Check for zero vectors and handle them
+    zero_vectors = np.all(all_centroids_flat == 0, axis=1)
+    if np.any(zero_vectors):
+        print(f"Found {np.sum(zero_vectors)} zero vectors. Handling them.")
+        # Add small noise to zero vectors to avoid division by zero
+        all_centroids_flat[zero_vectors] += np.random.normal(0, 1e-10, all_centroids_flat.shape[1])
+
+
     # Perform agglomerative clustering using cosine distance
     threshold = 0.7045654963945799
     distance_matrix = squareform(pdist(all_centroids_flat, metric='cosine'))
+
+    if np.isnan(distance_matrix).any() or np.isinf(distance_matrix).any():
+        
+        raise ValueError("Distance matrix contains NaNs or infinite values.")
+    
+
+    
+
     agg_clustering = AgglomerativeClustering(
         n_clusters=None, linkage='average', distance_threshold=threshold
     )
@@ -1116,9 +1163,20 @@ def separate(
 
         # print(f"Start: {start}, End: {end}",audio.shape,"diff ",end-start)
 
+        #check if both start and end are over signal
+        if start > seperated_audio.shape[0] and end > seperated_audio.shape[0]:
+            continue
+
+
         #check if end is over signal
         if end > seperated_audio.shape[0]:
             end = seperated_audio.shape[0]
+
+        #check if start and end are the same
+        if start == end:
+            continue
+
+        
 
         
 
@@ -1141,16 +1199,6 @@ def separate(
 
 
 
-
-
-
-
-
-            
-
-
-
-            
     print(result.shape)
 
     kept = np.zeros((result.shape[0],result.shape[2]))
