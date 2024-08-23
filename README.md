@@ -1,78 +1,24 @@
-<div align="center"><img src="https://raw.githubusercontent.com/b-sigpro/neural-fcasa/main/docs/image/logo.png" width="600"/></div>
+# NEURAL FCASA based speaker separation
 
+This approach is based on using NEURAL FCASA model that is said to be fast for source separation on 8 microphones.
+It separates each mic into 6 sources where 6 is noise. It works on chunks of 10s best and ouputs separated sources for each mic as well as the diarization of the sources. 
 
-# Neural Blind Source Separation and Diarization for Distant Speech Recognition
-This is a repository of neural full-rank spatial covariance analysis with speaker activity (neural FCASA).
-Neural FCASA is a method for jointly separating and diarizing speech mixtures without supervision by isolated signals.
+The main problem is that the permutation of the sources is not fixed so the output sources are not always in the same order.
 
+This is then solved by ussing pyannotate on each microphone separatly to obtain speaker diarization.
+Then for each mic we select the best speaker based on snr and also do clustering to really get the represantative sepakers for each mic, it also works with 2 spekers on same mic.
 
-## Installation
+globaly these speakers are selected and their diarization is then used to find the best coresponding chunk of the separated sources based on rmse beetwen the diarization of separated sources and the diarization of the speakers.
+
+Finally a mask is created where we use separated sources and where we use original audio too.
+
+the final outpu is each speaker in its own channel. Problems arrise where pyannonate fails to detect speakers or where the speakers are not well separated by the neural model.
+
+The algorithm was tested on 5min wav audio clips of sample rate 16000.
+
 ```bash
-pip install git+https://github.com/b-sigpro/neural-fcasa.git
+./r7.sh deve_full.wav
+
 ```
 
-## Inference
-### Using model pre-trained on the AMI corpus
-```bash
-python -m neural_fcasa.dereverberate input.wav input_derev.wav
-python -m neural_fcasa.separate one hf://b-sigpro/neural-fcasa input_derev.wav output.wav
-```
-
-### General usage
-#### Dereverberation
-```bash
-python -m neural_fcasa.dereverberate input.wav output.wav
-```
-
-This is just a thin wrapper of `nara_wpe`.
-The options are as follows:
-* `--n_fft`: Window length of STFT (default=512)
-* `--hop_length` Hop length of STFT (default=160)
-* `--taps` Tap length of WPE (default=10)
-* `--delay` Delay of WPE (default=3)
-
-
-#### Separation and diarization
-```bash
-python -m neural_fcasa.separate one /path/to/model/ input.wav output.wav
-```
-
-The options are as follows:
-* `--thresh`: Threshold to obtain diarization result (default: 0.5)
-* `--out_ch`: Output channel index for Wiener filtering (default: 0)
-* `--medfilt_size`: Filter size of median postfiltering (default: 11)
-* `--dump_diar`: Dump diarization results as a pickle file (default: `false`)
-* `--noi_snr`: SNR for white noise added to the separated result. No noise is added with `None`. (default: `None`)
-* `--normalize`: Perform normalization of the separated result (default: `false`)
-* `--device`: device type (e.g., `cuda` and `cpu`) for inference. (default: `cuda`)
-
-We used the following configuration for the evaluation in the paper:
-```bash
-python -m neural_fcasa.separate one hf://b-sigpro/neural-fcasa --dump_diar --noi_snr=40 --normalize input.wav output.wav
-```
-
-
-### Limitations
-The current inference script has the following limitations, which we are addressing to solve:
-* [ ] The # mics. must be the same as that at the training (8).
-* [ ] The input length must be less than 50 seconds due to the max. length of the positional encoding (5000).
-* [ ] The performance will be maximized by making the input length the same as that at the training (10 seconds).
-
-## Training
-The training script is compatible with PyTorch Lightning >= 2.2.3.
-
-The training job script for [AI Bridging Cloud Infrastructure (ABCI)](https://abci.ai/) is attached on [`recipes/neural-fcasa`](https://github.com/b-sigpro/neural-fcasa/tree/main/recipes/neural-fcasa).
-We will add a detailed instruction for training soon.
-
-## Reference
-```bibtex
-@inproceedings{bando2023neural,
-  title={Neural Blind Source Separation and Diarization for Distant Speech Recognition},
-  author={Yoshiaki Bando and Tomohiko Nakamura and Shinji Watanabe},
-  booktitle={accepted for INTERSPEECH},
-  year={2024}
-}
-```
-
-## Acknowledgement
-This work is based on results obtained from a project, Programs for Bridging the gap between R&D and the IDeal society (society 5.0) and Generating Economic and social value (BRIDGE)/Practical Global Research in the AI × Robotics Services, implemented by the Cabinet Office, Government of Japan.
+The output Saved to deve_full.wav_separated.wav
